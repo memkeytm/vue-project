@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title></title>
+    <link rel="stylesheet" href="">
+</head>
+<body>
+    <canvas width="500px" height="500px">
+        
+    </canvas>
+    <input type="file" name="" value="" placeholder="">
+    <button type="button" class="add">音量+</button>
+    <button type="button" class="lost">音量-</button>
+</body>
+<script type="text/javascript" charset="utf-8">
+    let fileInput = document.querySelector('input'),
+        add = document.querySelector('.add'), //音量+
+        lost = document.querySelector('.lost'), //音量-
+        audioCtx1 = new window.AudioContext, //创建环境
+		audioCtx = new window.OfflineAudioContext(1,82649338,44800), //创建环境
+        analyser = audioCtx.createAnalyser(), //analyser分析器
+        gainNode = audioCtx.createGain(), //控制音量大小
+        recorder = audioCtx.createScriptProcessor(2048, 2, 2), //缓冲区音频处理模块
+        canvas = document.querySelector('canvas'),
+        canvasCtx = canvas.getContext('2d');
+		analyser.fftSize = 256;
+    fileInput.onchange = function(ev){
+        let file = ev.target.files[0],
+        fr = new FileReader();
+        fr.readAsArrayBuffer(file);
+        fr.onload = function(data){
+            let result = data.target.result;
+            //解码ArrayBuffer
+            audioCtx1.decodeAudioData(result, getBuffer);
+        };
+    };
+ 
+    //修改音量大小
+    add.onclick = function(){
+        gainNode.gain.value += 0.1;
+    };
+    lost.onclick = function(){
+        gainNode.gain.value -= 0.1;
+    }
+    
+    function getBuffer(audioBuffer){
+        //创建对象，用过AudioBuffer对象来播放音频数据
+        let source  = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        //将source与analyser分析器连接
+        source.connect(analyser);
+        //将analyser与gainNode分析器连接
+        analyser.connect(gainNode);
+        //音量控制器与输出设备链接
+        gainNode.connect(recorder);
+        recorder.connect(audioCtx.destination);
+        //播放
+        source.start(0); 
+		audioCtx.startRendering();
+        draw(analyser);
+		var  ixxx = 0;
+		console.time(ixxx);
+		
+function sleep(delay) {
+  var start = (new Date()).getTime();
+  while ((new Date()).getTime() - start < delay) {
+    continue;
+  }
+}
+		
+        //音频采集
+        recorder.onaudioprocess = function (e) {
+			  console.timeEnd(ixxx);
+            /*输入流，必须要链接到输出流，audioCtx.destination才能有输出*/
+              let inputBuffer = e.inputBuffer, outputBuffer = e.outputBuffer;
+                outputBuffer.copyToChannel(inputBuffer.getChannelData(0), 0, 0);
+                outputBuffer.copyToChannel(inputBuffer.getChannelData(1), 1, 0);
+			console.time(++ixxx);
+			sleep(1000/25);
+        };
+    }
+    let WIDTH = 500, HEIGHT = 500;
+    //绘制波形图
+	let lastUpdate = Date.now();
+    function draw() {
+		let now = Date.now();
+		let dist = now - lastUpdate;
+		
+		if ((dist) < 1000/25){	   
+		  requestAnimationFrame(draw);	
+		  return;
+		}
+	  //console.log(dist);
+	  lastUpdate = now;
+      requestAnimationFrame(draw);	  
+        //保存频率数据
+      let dataArray = new Uint8Array(analyser.fftSize),
+          bufferLength = analyser.fftSize;
+      //获取频域的输出信息 
+      //analyser.getByteTimeDomainData(dataArray);
+	  analyser.getByteFrequencyData(dataArray);
+
+	  canvasCtx.fillStyle = 'rgb(0, 0, 0)';
+			//canvasCtx.fillStyle = ;
+	  canvasCtx.fillRect(0, 0, 500, 500);
+	  var barWidth = (500 / bufferLength) * 2.5;
+	  var barHeight;
+	  var x = 0;
+	  for(var i = 0; i < bufferLength; i++) {
+	   barHeight = dataArray[i];
+			 //随机数0-255 Math.floor(Math.random()*255) 
+			 // 随机数 10*Math.random()
+	   canvasCtx.fillStyle = 'red';//'rgb(' + (barHeight+100) + ','+Math.floor(Math.random()*(20- 120) + 120)+','+Math.floor(Math.random()*(10 - 50) + 50)+')';
+	   canvasCtx.fillRect(x,500-barHeight/2,barWidth,barHeight/2);
+	   x += barWidth + 5;
+	  }      
+    };
+</script>
+</html>
